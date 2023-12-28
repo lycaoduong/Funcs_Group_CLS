@@ -14,7 +14,7 @@ conda env create -f environment.yml
 ```
 
 ## For training
-Run python script train_classification.py with variable parser arguments:
+Run python script train.py with variable parser arguments:
 ```
 --project [project name]: where the model and logging are stored, default location ../run/[project name]
 --model [model name]: choosing model, Default: Fcg-B
