@@ -13,6 +13,9 @@
 conda env create -f environment.yml
 ```
 
+## Pretrained Model
+https://1drv.ms/u/s!AihbU7PyEgbOjgietVFW_squY8QO?e=S2aoqC
+
 ## For training
 Run python script train.py with variable parser arguments:
 ```
@@ -31,7 +34,7 @@ Run python script train.py with variable parser arguments:
 Run python script predict.py with variable parser arguments:
 ```
 --project [project name]: where the model and logging are stored, default location ../run/[project name]
---model [model name]: choosing model, Default: Fcg-test
+--model [model name]: choosing model, Default: Fcg-B
 --cktp [ckpt dir]: load pretrained weighted
 --device [select device]: cuda or cpu
 --input [input path]: input (npy) file path

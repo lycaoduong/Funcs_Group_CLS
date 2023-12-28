@@ -1,9 +1,0 @@
-author : 'Ly Cao Duong - 20231227'
-project : 'Ohlabs Functional Groups Classification'
-signal_size: 1024
-patch_size: 16
-num_layers: 1
-embed_dim: 768
-voca_size: 20
-expansion_factor: 4
-n_heads: 8
