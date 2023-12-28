@@ -6,7 +6,7 @@ os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 def get_args():
     parser = argparse.ArgumentParser('Functional Groups Description Pytorch')
-    parser.add_argument('-p', '--project', type=str, default='FCG Description', help='Project Name')
+    parser.add_argument('-p', '--project', type=str, default='FCG_Description', help='Project Name')
     parser.add_argument('-m', '--model', type=str, default='Fcg-B', help='Choosing Model')
     parser.add_argument('-w', '--ckpt', type=str, default=None, help='Loading pretrained weighted')
     parser.add_argument('-d', '--dataset', type=str, default='ohlabsFcg', help='Loading dataset configs file')

@@ -13,7 +13,6 @@ from tqdm.autonotebook import tqdm
 import traceback
 from tensorboardX import SummaryWriter
 import numpy as np
-import nni
 from sklearn.model_selection import train_test_split
 import pandas as pd
 
@@ -261,10 +260,10 @@ class Trainer(object):
 
         self.writer.add_scalars('Loss', {'val': mean_loss}, epoch)
 
-        if self.nni_writer:
-            nni.report_intermediate_result(mean_loss)
-            if epoch == self.epochs - 1:
-                nni.report_final_result(mean_loss)
+        # if self.nni_writer:
+        #     nni.report_intermediate_result(mean_loss)
+        #     if epoch == self.epochs - 1:
+        #         nni.report_final_result(mean_loss)
 
         self.save_checkpoint(self.model, self.save_dir, 'last.pt')
 
