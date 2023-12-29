@@ -3,6 +3,12 @@
 - Author: lycaoduong
 - Email: lycaoduong@gmail.com
 
+## Todo list
+- Preprocessing dataset
+- Evaluation code
+- Reimplement paper's model
+- Implement generative model
+
 ## Current Approach
 - Transformer Encoder
 - Transformer Decoder
