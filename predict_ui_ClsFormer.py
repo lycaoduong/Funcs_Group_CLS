@@ -6,7 +6,12 @@ import onnxruntime
 import cv2
 
 
-class PredictorClsONNX(object):
+funcs_name = ["alkane", "methyl", "alkene", "alkyne", "alcohols", "amines", "nitriles", "aromatics",
+              "alkyl halides", "esters", "ketones", "aldehydes", "carboxylic acids",
+              "ether", "acyl halides", "amides", "nitro"]
+
+
+class PredictorClsFormerONNX(object):
     def __init__(self, onnx_dir, signal_size=1024, device='cpu'):
         if device == 'cuda':
             providers = [
@@ -23,7 +28,8 @@ class PredictorClsONNX(object):
             session = onnxruntime.InferenceSession(onnx_dir, providers=['CPUExecutionProvider'])
         session.get_modelmeta()
         self.input_name = session.get_inputs()[0].name
-        self.output_name = session.get_outputs()[0].name
+        self.result_name = session.get_outputs()[0].name
+        self.att_name = session.get_outputs()[1].name
         self.model = session
         self.device = device
         self.signal_size = signal_size
@@ -38,34 +44,41 @@ class PredictorClsONNX(object):
         signal = ((signal.astype(np.float32) - min) / (max - min))
         signal = cv2.resize(signal, (self.signal_size, 1), interpolation=cv2.INTER_CUBIC)
         input_blob = np.expand_dims(signal, axis=0).astype(np.float32)
-        outputs = self.model.run([self.output_name], {self.input_name: input_blob})[0][0]
+        outputs, att_map = self.model.run([self.result_name, self.att_name], {self.input_name: input_blob})
+        outputs = outputs[0]
         clses = list(np.where(outputs >= th))[0]
         results = []
         for cls in clses:
             cls_name = self.cls_dic[cls]
             results.append(cls_name)
-        return results
+        return results, np.mean(att_map, axis=1)[0]
 
 
-ckpt = 'cls.onnx'
-model = PredictorClsONNX(onnx_dir=ckpt)
+ckpt = 'cls_former.onnx'
+model = PredictorClsFormerONNX(onnx_dir=ckpt)
 
 def process(inputdata):
     try:
-        spectral = np.load(io.BytesIO(inputdata))
-        outputs = model(spectral, th=0.5)
+        spectra = np.load(io.BytesIO(inputdata))
+        outputs, att_map = model(spectra, th=0.5)
         rs = ''
         for o in outputs:
             rs += o + ', '
-        fig = plt.figure()
-        plt.title("Spectra Signal")
-        # plt.ion()
-        # for i in range(len(spectral)):
-        #     # fig = plt.figure()
-        #     plt.title("Spectra Signal")
-        #     plt.plot(spectral[:i])
-        #     yield rs, plt
-        plt.plot(spectral)
+
+        fig, ax1 = plt.subplots(figsize=(12, 6))
+        ax2 = plt.twinx().twiny()
+        ax2.set_xlim(0, len(spectra))
+        ax1.set_yticks(np.arange(len(funcs_name)), labels=funcs_name)
+        # ax1.set_xlim(0, 64)
+
+        tem = np.zeros_like(att_map)
+        for i, r in enumerate(funcs_name):
+            if r in outputs:
+                tem[i, :] = att_map[i, :]
+
+        ax1.imshow(tem[:, :], cmap='viridis', interpolation='nearest', aspect="auto")
+        ax2.plot(spectra)
+
     except:
         rs = 'Invalid File'
         plt.figure(1)
@@ -83,9 +96,9 @@ with block:
             results = gr.Textbox(label="Prediction Result")
             run_button = gr.Button(value="Run")
         with gr.Column():
-            plot = gr.Plot(label="Plot")
+                att_map = gr.Plot(label="Attention Map")
     ips = [input_data]
-    ops = [results, plot]
+    ops = [results, att_map]
     run_button.click(fn=process, inputs=ips, outputs=ops)
 
-block.launch(server_name='localhost', share=True)
+block.launch(server_name='localhost', share=False)

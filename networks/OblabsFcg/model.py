@@ -1,7 +1,7 @@
 import numpy as np
 import torch.nn as nn
 import torch
-from networks.OblabsFcg.FCGTransformer import TransformerDecoder, TransformerDecoderXport, FCGTransformerEncoder
+from networks.OblabsFcg.FCGTransformer import TransformerDecoder, FCGTransformerEncoder, ClassFormerDecoder
 import torch.nn.functional as F
 
 
@@ -41,9 +41,27 @@ import torch.nn.functional as F
 #         return o
 
 class FCGClassification(nn.Module):
-    def __init__(self, embed_dim, signal_size, patch_size, target_vocab_size, seq_length, num_layers=2, expansion_factor=4,
-                 n_heads=8, num_cls=1):
+    def __init__(self, embed_dim, signal_size, patch_size, num_layers=2, expansion_factor=4, n_heads=8, num_cls=1):
         super(FCGClassification, self).__init__()
+
+        self.encoder = FCGTransformerEncoder(signal_size=signal_size, patch_size=patch_size, embed_dim=embed_dim,
+                                             num_layers=num_layers, n_heads=n_heads, expansion_factor=expansion_factor,
+                                             num_cls=num_cls)
+        self.head = nn.Linear(embed_dim, num_cls)
+
+    def forward(self, signal):
+        x = self.encoder(signal)
+        cls_token_final = x[:, 0]  # just CLS token
+        x = self.head(cls_token_final)
+        # Comment it if Loss Function has activation function
+        # x = torch.sigmoid(x)
+        return x
+
+
+class FCGClassificationXPORT(nn.Module):
+    def __init__(self, embed_dim, signal_size, patch_size, target_vocab_size, num_layers=2, expansion_factor=4,
+                 n_heads=8, num_cls=1):
+        super(FCGClassificationXPORT, self).__init__()
         self.target_vocab_size = target_vocab_size
 
         self.encoder = FCGTransformerEncoder(signal_size=signal_size, patch_size=patch_size, embed_dim=embed_dim,
@@ -55,7 +73,7 @@ class FCGClassification(nn.Module):
         x = self.encoder(signal)
         cls_token_final = x[:, 0]  # just CLS token
         x = self.head(cls_token_final)
-        # x = torch.sigmoid(x)
+        x = torch.sigmoid(x)
         return x
 
 
@@ -124,6 +142,62 @@ class FCGDescription(nn.Module):
         return outputs
 
 
+class FCGClassFormer(nn.Module):
+    def __init__(self, embed_dim, signal_size, patch_size, num_layers=2, expansion_factor=4,
+                 n_heads=8, num_cls=1):
+        super(FCGClassFormer, self).__init__()
+
+        self.encoder = FCGTransformerEncoder(signal_size=signal_size, patch_size=patch_size, embed_dim=embed_dim,
+                                             num_layers=num_layers, n_heads=n_heads, expansion_factor=expansion_factor,
+                                             num_cls=num_cls)
+        self.decoder = ClassFormerDecoder(embed_dim=embed_dim, num_layers=num_layers, expansion_factor=expansion_factor,
+                                          n_heads=n_heads, num_cls=num_cls)
+
+    def forward(self, signal):
+        """
+        :param signal:
+        :return:
+        """
+        enc_emb = self.encoder(signal)
+        scores = self.decoder(enc_emb[:, 1:, :])
+        # Comment it if Loss Function has activation function
+        # scores = torch.sigmoid(scores)
+        return scores
+
+
+class FCGClassFormerXPORT(nn.Module):
+    def __init__(self, embed_dim, signal_size, patch_size, target_vocab_size, num_layers=2, expansion_factor=4,
+                 n_heads=8, num_cls=1):
+        super(FCGClassFormerXPORT, self).__init__()
+        self.target_vocab_size = target_vocab_size
+
+        self.encoder = FCGTransformerEncoder(signal_size=signal_size, patch_size=patch_size, embed_dim=embed_dim,
+                                             num_layers=num_layers, n_heads=n_heads, expansion_factor=expansion_factor,
+                                             num_cls=num_cls)
+        self.decoder = ClassFormerDecoder(embed_dim=embed_dim, num_layers=num_layers, expansion_factor=expansion_factor,
+                                          n_heads=n_heads, num_cls=num_cls)
+
+    def get_attention(self):
+        layers = self.decoder.layers
+        self_att = []
+        cross_att = []
+        for decoder_block in layers:
+            self_att.append(decoder_block.attention.attention_map.cpu().numpy())
+            cross_att.append(decoder_block.transformer_block.attention.attention_map.cpu().numpy())
+        return {"self_att": self_att, "cross_att": cross_att}
+
+    def forward(self, signal):
+        """
+        :param signal:
+        :return:
+        """
+        enc_emb = self.encoder(signal)
+        scores = self.decoder(enc_emb[:, 1:, :])
+        scores = torch.sigmoid(scores)
+        cross_att = self.decoder.layers[0].transformer_block.attention.attention_map
+        return scores, cross_att
+
+
 if __name__ == '__main__':
     if torch.cuda.is_available():
         device = 'cuda'
@@ -161,10 +235,16 @@ if __name__ == '__main__':
     # print(o)
 
     # Test Classification model
-    model = FCGClassification(embed_dim=embed_dim, signal_size=signal_size, patch_size=patch_size,
-                           target_vocab_size=target_vocab_size, seq_length=seq_length, num_layers=num_layers,
+    # model = FCGClassification(embed_dim=embed_dim, signal_size=signal_size, patch_size=patch_size,
+    #                        target_vocab_size=target_vocab_size, num_layers=num_layers,
+    #                        expansion_factor=expansion_factor, n_heads=n_heads, num_cls=17)
+
+    model = FCGClassFormer(embed_dim=embed_dim, signal_size=signal_size, patch_size=patch_size,
+                           target_vocab_size=target_vocab_size, num_layers=num_layers,
                            expansion_factor=expansion_factor, n_heads=n_heads, num_cls=17)
+
     model.to(device)
     signal = torch.randn(2, 1, signal_size).to(device)
     o = model(signal)
     print(o)
+    print(o.shape)

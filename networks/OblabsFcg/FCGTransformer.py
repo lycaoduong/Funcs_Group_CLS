@@ -78,6 +78,7 @@ class MultiHeadAttention(nn.Module):
         self.key_matrix = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.value_matrix = nn.Linear(self.single_head_dim, self.single_head_dim, bias=False)
         self.out = nn.Linear(self.n_heads * self.single_head_dim, self.embed_dim)
+        self.attention_map = None
 
     def forward(self, key, query, value, mask=None):  # batch_size x sequence_length x embedding_dim    # 32 x 10 x 512
 
@@ -127,6 +128,7 @@ class MultiHeadAttention(nn.Module):
 
         # applying softmax
         scores = F.softmax(product, dim=-1)
+        self.attention_map = scores
 
         # mutiply with value matrix
         scores = torch.matmul(scores, v)  ##(32x8x 10x 10) x (32 x 8 x 10 x 64) = (32 x 8 x 10 x 64)
@@ -136,9 +138,9 @@ class MultiHeadAttention(nn.Module):
                                                           self.single_head_dim * self.n_heads)  # (32x8x10x64) -> (32x10x8x64)  -> (32,10,512)
 
         # Return different value
-        # output = self.out(concat)  # (32,10,512) -> (32,10,512)
+        output = self.out(concat)  # (32,10,512) -> (32,10,512)
 
-        return concat
+        return output
 
 
 class SelfAttention(nn.Module):
@@ -359,6 +361,48 @@ class DecoderBlock(nn.Module):
         out = self.transformer_block(key, query, value)
 
         return out
+
+
+class ClassFormerDecoder(nn.Module):
+    def __init__(self, embed_dim, num_layers=2, expansion_factor=4, n_heads=8, num_cls=1):
+        super(ClassFormerDecoder, self).__init__()
+        """  
+        Args:
+           target_vocab_size: vocabulary size of taget
+           embed_dim: dimension of embedding
+           seq_len : length of input sequence
+           num_layers: number of encoder layers
+           expansion_factor: factor which determines number of linear layers in feed forward layer
+           n_heads: number of heads in multihead attention
+
+        """
+        self.query_emb = nn.Parameter(torch.randn(1, num_cls, embed_dim))
+        # self.query_pos_embed = nn.Parameter(torch.zeros(1, 1 + self.patch_embed.n_patches, embed_dim))
+        self.layers = nn.ModuleList(
+            [
+                DecoderBlock(embed_dim, expansion_factor=expansion_factor, n_heads=n_heads)
+                for _ in range(num_layers)
+            ]
+
+        )
+        # self.fc_out = nn.Linear(embed_dim*num_cls, num_cls)
+        self.fc_out = nn.Linear(embed_dim, 1)
+        self.dropout = nn.Dropout(0.2)
+
+    def forward(self, enc_ebd):
+        """
+        :param enc_ebd:
+        :return:
+        """
+        cls_emb = self.query_emb.expand(enc_ebd.size(0), -1, -1)
+
+        for layer in self.layers:
+            cls_emb = layer(enc_ebd, enc_ebd, cls_emb, mask=None)  # Key from Enc, Value from Enc, cls_emb
+
+        # cls_emb = torch.flatten(cls_emb, -2, -1)
+        out = self.fc_out(cls_emb)
+        out = self.dropout(out)
+        return torch.squeeze(out)
 
 
 class TransformerDecoder(nn.Module):

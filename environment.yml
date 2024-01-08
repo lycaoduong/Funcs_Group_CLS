@@ -22,7 +22,6 @@ dependencies:
   - cuda-nvtx=11.8.86=0
   - cuda-profiler-api=12.3.101=0
   - cuda-runtime=11.8.0=0
-  - filelock=3.13.1=py39haa95532_0
   - freetype=2.12.1=ha860e81_0
   - giflib=5.2.1=h8cc25b3_3
   - gmpy2=2.1.2=py39h7f96b67_0
@@ -98,15 +97,19 @@ dependencies:
     - altair==5.2.0
     - annotated-types==0.6.0
     - anyio==4.2.0
+    - astor==0.8.1
     - attrs==23.1.0
     - cachetools==5.3.2
     - click==8.1.7
+    - cloudpickle==3.0.0
     - colorama==0.4.6
+    - contextlib2==21.6.0
     - contourpy==1.2.0
     - cycler==0.12.1
     - exceptiongroup==1.2.0
     - fastapi==0.108.0
     - ffmpy==0.3.1
+    - filelock==3.11.0
     - fonttools==4.47.0
     - fsspec==2023.12.2
     - google-auth==2.25.2
@@ -121,6 +124,7 @@ dependencies:
     - importlib-metadata==7.0.1
     - importlib-resources==6.1.1
     - joblib==1.3.2
+    - json-tricks==3.17.3
     - jsonschema==4.20.0
     - jsonschema-specifications==2023.12.1
     - kiwisolver==1.4.5
@@ -128,12 +132,16 @@ dependencies:
     - markdown-it-py==3.0.0
     - matplotlib==3.8.2
     - mdurl==0.1.2
+    - nni==3.0
+    - nvidia-ml-py==12.535.133
     - oauthlib==3.2.2
     - opencv-python==4.8.1.78
     - orjson==3.9.10
     - packaging==23.2
     - pandas==2.1.4
+    - prettytable==3.9.0
     - protobuf==4.23.4
+    - psutil==5.9.7
     - pyasn1==0.5.1
     - pyasn1-modules==0.3.0
     - pydantic==2.5.3
@@ -143,16 +151,20 @@ dependencies:
     - pyparsing==3.1.1
     - python-dateutil==2.8.2
     - python-multipart==0.0.6
+    - pythonwebhdfs==0.2.3
     - pytz==2023.3.post1
     - referencing==0.32.0
     - requests-oauthlib==1.3.1
+    - responses==0.24.1
     - rich==13.7.0
     - rpds-py==0.16.2
     - rsa==4.9
+    - schema==0.7.5
     - scikit-learn==1.3.2
     - scipy==1.11.4
     - semantic-version==2.10.0
     - shellingham==1.5.4
+    - simplejson==3.19.2
     - six==1.16.0
     - sniffio==1.3.0
     - starlette==0.32.0.post1
@@ -165,10 +177,12 @@ dependencies:
     - torchaudio==2.1.2
     - torchvision==0.16.2
     - tqdm==4.66.1
+    - typeguard==4.1.2
     - typer==0.9.0
     - typing-extensions==4.9.0
     - tzdata==2023.3
     - uvicorn==0.25.0
+    - wcwidth==0.2.12
     - websockets==11.0.3
     - werkzeug==3.0.1
     - zipp==3.17.0

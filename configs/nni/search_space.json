@@ -1,0 +1,3 @@
+{
+    "model":{"_type":"choice","_value":["IRCNN", "Fcg-B", "Fcg-L"]}
+}

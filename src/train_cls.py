@@ -6,7 +6,8 @@ from utils.ohlabs import transform as tr
 from torchvision import transforms
 from utils.ohlabs.dataloader import FCGClassificationDataset
 from torch.utils.data import DataLoader
-from networks.OblabsFcg.model import FCGClassification
+from networks.OblabsFcg.model import FCGClassification, FCGClassFormer
+from networks.ircharacercnn.ircnn import IrCNN
 from torch import nn
 import torch
 from tqdm.autonotebook import tqdm
@@ -15,19 +16,27 @@ from tensorboardX import SummaryWriter
 import numpy as np
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import nni
+from utils.ohlabs.plotutils import plot_data
 
 
 class ModelWithLoss(nn.Module):
-    def __init__(self, model, reduction='mean'):
+    def __init__(self, model, reduction='mean', weight=None):
         super().__init__()
         self.model = model
-        self.criterion = nn.BCEWithLogitsLoss(reduction=reduction)
+        self.criterion = nn.BCEWithLogitsLoss(weight=weight, reduction="sum")
         self.reduction = reduction
+        self.w = weight
 
     def forward(self, signal, target, **kwargs):
         o = self.model(signal)
+        if len(o.shape) == 3:
+            o = torch.squeeze(o, dim=1)
         losses = self.criterion(o, target)
-        return losses
+        if self.reduction == 'mean':
+            return losses / self.w.sum()
+        else:
+            return losses
 
 
 class Trainer(object):
@@ -45,10 +54,13 @@ class Trainer(object):
         if hasattr(train_opt, 'nni'):
             exp_name, _, trial_name = os.environ['NNI_OUTPUT_DIR'].split('\\')[-3:]
             self.nni_writer = True
+            self.save_dir = '../runs/nni/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset,
+                                                                 exp_name, trial_name)
         else:
             exp_name, trial_name = 'single_run', date_time
             self.nni_writer = False
-        self.save_dir = '../runs/train/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset, exp_name, trial_name)
+            self.save_dir = '../runs/train/compared_round2/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset,
+                                                                   exp_name, trial_name)
         os.makedirs(self.save_dir, exist_ok=True)
 
         self.logs = self.save_dir + 'logs/'
@@ -87,6 +99,9 @@ class Trainer(object):
             val_list = [line.rstrip('\n') for line in open(self.val_dir)]
 
         # Data Loader
+        #Read Aug config
+        augcfs = YamlRead(f'configs/aug/{train_opt.aug}.yaml')
+
         self.device = train_opt.device
         self.batch_size = train_opt.batch_size
         df = pd.read_csv(self.token_dir, encoding='utf-8').to_dict()
@@ -95,13 +110,18 @@ class Trainer(object):
         self.voca_size = len(voca_token)
 
         train_transforms = [
+            tr.AddNoise(p=augcfs.p_noise, target_snr_db=augcfs.noise_db, mean_noise=0),
+            tr.Revert(p=augcfs.p_revert),
+            tr.MaskZeros(p=augcfs.p_mask, mask_p=augcfs.mask_size),
+            tr.ShiftLR(p=augcfs.p_shiftLR, shift_p=augcfs.shiftLR_size),
+            tr.ShiftUD(p=augcfs.p_shiftUD, shift_p=augcfs.shiftUD_size),
             tr.Normalizer(with_std=False),
             tr.Resizer(signal_size=self.signal_size)
         ]
 
         training_set = FCGClassificationDataset(root_dir=self.train_dir, list_data=train_list, voca_dic=voca_token,
-                                             pos_dic=self.pos_dic, max_sequence=self.max_sequence,
-                                             transform=transforms.Compose(train_transforms))
+                                                pos_dic=self.pos_dic, max_sequence=self.max_sequence,
+                                                transform=transforms.Compose(train_transforms))
 
         train_params = {
             'batch_size': self.batch_size,
@@ -118,8 +138,8 @@ class Trainer(object):
         ]
 
         val_set = FCGClassificationDataset(root_dir=self.train_dir, list_data=val_list, voca_dic=voca_token,
-                                        pos_dic=self.pos_dic, max_sequence=self.max_sequence,
-                                        transform=transforms.Compose(validation_transforms))
+                                           pos_dic=self.pos_dic, max_sequence=self.max_sequence,
+                                           transform=transforms.Compose(validation_transforms))
 
         val_params = {
             'batch_size': self.batch_size,
@@ -130,12 +150,19 @@ class Trainer(object):
         self.val_generator = DataLoader(val_set, collate_fn=tr.collater, **val_params)
 
         # Model
-
-        model = FCGClassification(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
-                               patch_size=model_configs.patch_size, target_vocab_size=self.voca_size,
-                               seq_length=dataset_configs.max_sequence, num_layers=model_configs.num_layers,
-                               expansion_factor=model_configs.expansion_factor, n_heads=model_configs.n_heads,
-                               num_cls=dataset_configs.num_cls)
+        if self.model_name == "Fcg-S" or self.model_name == "Fcg-B" or self.model_name == "Fcg-L" \
+                or self.model_name == "Fcg-H":
+            model = FCGClassification(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
+                                      patch_size=model_configs.patch_size, num_layers=model_configs.num_layers,
+                                      expansion_factor=model_configs.expansion_factor, n_heads=model_configs.n_heads,
+                                      num_cls=dataset_configs.num_cls)
+        elif self.model_name == "IRCNN":
+            model = IrCNN(signal_size=model_configs.signal_size)
+        else:
+            model = FCGClassFormer(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
+                                   patch_size=model_configs.patch_size, num_layers=model_configs.num_layers,
+                                   expansion_factor=model_configs.expansion_factor, n_heads=model_configs.n_heads,
+                                   num_cls=dataset_configs.num_cls)
 
         # if torch.cuda.is_available():
         #     model = nn.DataParallel(model)
@@ -143,8 +170,9 @@ class Trainer(object):
             weight = torch.load(train_opt.ckpt, map_location=self.device)
             model.load_state_dict(weight, strict=True)
 
-        self.model = ModelWithLoss(model=model, reduction='mean')
-        self.model = self.model.to(self.device)
+        # self.model = ModelWithLoss(model=model, reduction='mean')
+        # self.model = self.model.to(self.device)
+        self.model = model
 
         # Optimizer and Learning rate scheduler
 
@@ -162,7 +190,7 @@ class Trainer(object):
 
         if self.lr_scheduler == 'cosine':
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer=self.optimizer,
-                                                                                  T_0=10,
+                                                                                  T_0=40,
                                                                                   T_mult=2)
         else:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=3, verbose=True)
@@ -171,6 +199,41 @@ class Trainer(object):
         self.step = 0
         self.best_loss = 1e5
         self.epochs = train_opt.epochs
+        self.total_fcng = np.zeros((1, 8))
+
+        self.train_data_dis = np.zeros((1, self.num_cls))
+        self.val_data_dis = np.zeros((1, self.num_cls))
+        self.cls_weight = np.zeros((1, self.num_cls))
+        self.loss_weight = np.zeros((1, self.num_cls))
+        self.with_w = train_opt.lossW
+
+    def data_analysis(self):
+        # Train data
+        print("Analyze Training dataset")
+        progress_bar = tqdm(self.training_generator)
+        for iter, data in enumerate(progress_bar):
+            signals, tokenizer = data['signal'], data['tokenizer']
+            tokenizer = tokenizer.cpu().numpy()
+            self.train_data_dis += np.sum(tokenizer, axis=0)
+        plot_data(data_dis=self.train_data_dis, save_dir=self.save_dir, save_name="train_distribution.png")
+
+        print("Analyze Validation dataset")
+        progress_bar = tqdm(self.val_generator)
+        for iter, data in enumerate(progress_bar):
+            signals, tokenizer = data['signal'], data['tokenizer']
+            tokenizer = tokenizer.cpu().numpy()
+            self.val_data_dis += np.sum(tokenizer, axis=0)
+        plot_data(data_dis=self.val_data_dis, save_dir=self.save_dir, save_name="val_distribution.png")
+
+        sum = np.sum(self.train_data_dis, axis=1)
+        self.cls_weight = self.train_data_dis / sum
+        self.loss_weight = (1.0 / self.cls_weight)
+        if self.with_w:
+            w = torch.from_numpy(self.loss_weight[0]).to(self.device)
+            self.model = ModelWithLoss(model=self.model, reduction='mean', weight=w)
+        else:
+            self.model = ModelWithLoss(model=self.model, reduction='mean')
+        self.model = self.model.to(self.device)
 
     def train(self, epoch):
         self.model.train()
@@ -260,10 +323,10 @@ class Trainer(object):
 
         self.writer.add_scalars('Loss', {'val': mean_loss}, epoch)
 
-        # if self.nni_writer:
-        #     nni.report_intermediate_result(mean_loss)
-        #     if epoch == self.epochs - 1:
-        #         nni.report_final_result(mean_loss)
+        if self.nni_writer:
+            nni.report_intermediate_result(mean_loss)
+            if epoch == self.epochs - 1:
+                nni.report_final_result(mean_loss)
 
         self.save_checkpoint(self.model, self.save_dir, 'last.pt')
 
@@ -272,6 +335,7 @@ class Trainer(object):
             self.save_checkpoint(self.model, self.save_dir, 'best_val_loss.pt')
 
     def start(self):
+        self.data_analysis()
         for epoch in range(self.epochs):
             self.train(epoch)
             self.validation(epoch)

@@ -1,0 +1,17 @@
+authorName: lycaoduong
+experimentName: visionin
+trialConcurrency: 1
+maxExecDuration: 99999d
+maxTrialNum: 3
+trainingServicePlatform: local
+searchSpacePath: D:/lycaoduong/workspace/src_code/github_repo/oblabs/Funcs_Group_CLS/configs/nni/search_space.json
+logDir: D:/lycaoduong/workspace/src_code/github_repo/oblabs/runs/nni_logs
+useAnnotation: false
+localConfig:
+  useActiveGpu: true
+tuner:
+  builtinTunerName: GridSearch
+trial:
+  codeDir: D:/lycaoduong/workspace/src_code/github_repo/oblabs/Funcs_Group_CLS
+  command: python train.py #--request-from-nni
+  gpuNum: 1
