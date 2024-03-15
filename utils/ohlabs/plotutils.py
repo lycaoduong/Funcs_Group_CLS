@@ -10,7 +10,7 @@ funcs_name = ["alkane", "methyl", "alkene", "alkyne", "alcohols", "amines", "nit
               "ether", "acyl halides", "amides", "nitro"]
 
 
-def plot_attention_map(spectra, result, att_map):
+def plot_cross_attention_map(spectra, result, att_map):
     if att_map is not None:
         fig, ax1 = plt.subplots(figsize=(12, 6))
         ax2 = plt.twinx().twiny()
@@ -25,6 +25,17 @@ def plot_attention_map(spectra, result, att_map):
 
         ax1.imshow(tem[:, :], cmap='viridis', interpolation='nearest', aspect="auto")
         ax2.plot(spectra)
+        plt.show()
+
+
+def plot_self_attention_map(spectra, att_map, offset=0):
+    if att_map is not None:
+        fig, ax1 = plt.subplots(figsize=(12, 12))
+        ax2 = plt.twinx().twiny()
+        ax2.set_xlim(0, len(spectra))
+        ax1.imshow(att_map[1:, 1:], cmap='viridis', interpolation='nearest', aspect="auto")
+        ax2.plot(spectra)
+        ax2.set_xticklabels(np.arange(offset, len(spectra)+offset, 11))
         plt.show()
 
 def addlabels(x,y):
@@ -43,14 +54,58 @@ def plot_data(data_dis, save_dir="./", save_name="fg.png"):
     save_path = os.path.join(save_dir, save_name)
     plt.savefig(save_path)
 
+def plot_roc_pr_curve(precision, recall, fpr, save_dir="./", save_name="funcs_roc_pr_curve.png"):
+    fig = plt.figure(figsize=(14, 8))
+    plt.style.use('ggplot')
+    # Add value
+    precision.insert(0, 0.0001)
+    recall.insert(0, 0.9999)
+    fpr.insert(0, 0.9999)
+
+    precision.append(0.9999)
+    recall.append(0.0001)
+    fpr.append(0.0001)
+
+    # ROC curve
+    plt.subplot(121)
+    plt.plot(fpr, recall, linewidth=2)
+    plt.title('ROC Curve', fontsize=18, fontweight="bold", y=1.05)
+    plt.fill_between(fpr, recall, facecolor='blue', alpha=0.1)
+    plt.text(0.55, 0.4, 'AUC', fontsize=30)
+    # styling figure
+    plt.xlabel('False Positive Rate', fontsize=16, labelpad=13)
+    plt.ylabel('True Positive Rate', fontsize=16, labelpad=13)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim(-0.01, 1.01)
+    plt.ylim(-0.01, 1.01)
+
+    # PR Curve
+    plt.subplot(122)
+    plt.plot(recall, precision)
+    plt.title('PR Curve', fontsize=18, fontweight="bold", y=1.05)
+    plt.ylabel('Precision', fontsize=16, labelpad=13)
+    plt.xlabel('Recall', fontsize=16, labelpad=13)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+    plt.xlim(-0.01, 1.01)
+    plt.ylim(-0.01, 1.01)
+    # plt.show()
+    save_path = os.path.join(save_dir, save_name)
+    plt.savefig(save_path)
+    plt.close()
+
 def plot_conf(conf, label=["1", "0"], title=None, save_dir="./", save_name='fg.png'):
+    plt.style.use('classic')
     disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=label)
-    disp.plot()
+    disp.plot(values_format='')
     if title is not None:
         plt.title(title)
     # plt.show()
     save_path = os.path.join(save_dir, save_name)
     plt.savefig(save_path)
+    plt.close()
 
 def func_confusion(target, result, th=0.5):
     num_cls = len(funcs_name)
@@ -79,6 +134,6 @@ def subs_confusion(target, result, th=0.5):
 
 
 if __name__ == '__main__':
-    tg = np.array([[1, 1, 1, 1], [0, 1, 1, 1]])
-    rs = np.array([[0.9, 0.8, 0.75, 0.9], [0.1, 0.8, 0.75, 0.9]])
-    subs_confusion(tg, rs, th=0.5)
+    tg = np.array([[1, 1, 1, 1], [0, 1, 1, 1], [0, 1, 1, 0]])
+    rs = np.array([[0.9, 0.8, 0.75, 0.9], [0.1, 0.8, 0.75, 0.9], [0.9, 0.9, 0.9, 0.1]])
+    func_confusion(tg, rs, th=0.5)

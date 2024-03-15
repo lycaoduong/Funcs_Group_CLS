@@ -18,13 +18,14 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import nni
 from utils.ohlabs.plotutils import plot_data
+from utils.ohlabs.trainutils import EarlyStopper
 
 
 class ModelWithLoss(nn.Module):
     def __init__(self, model, reduction='mean', weight=None):
         super().__init__()
         self.model = model
-        self.criterion = nn.BCEWithLogitsLoss(weight=weight, reduction="sum")
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
         self.reduction = reduction
         self.w = weight
 
@@ -33,10 +34,10 @@ class ModelWithLoss(nn.Module):
         if len(o.shape) == 3:
             o = torch.squeeze(o, dim=1)
         losses = self.criterion(o, target)
-        if self.reduction == 'mean':
-            return losses / self.w.sum()
-        else:
-            return losses
+        # if self.reduction == 'mean':
+        #     return losses / self.w.sum()
+        # else:
+        return losses
 
 
 class Trainer(object):
@@ -59,8 +60,12 @@ class Trainer(object):
         else:
             exp_name, trial_name = 'single_run', date_time
             self.nni_writer = False
-            self.save_dir = '../runs/train/compared_round2/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset,
-                                                                   exp_name, trial_name)
+            if train_opt.lossW:
+                self.save_dir = '../runs/train/paper_w_weight/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset,
+                                                                       exp_name, trial_name)
+            else:
+                self.save_dir = '../runs/train/paper/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset,
+                                                                       exp_name, trial_name)
         os.makedirs(self.save_dir, exist_ok=True)
 
         self.logs = self.save_dir + 'logs/'
@@ -95,8 +100,19 @@ class Trainer(object):
                         list_dataset.append(file)
             train_list, val_list = train_test_split(list_dataset, test_size=self.val_dir, random_state=42)
         else:
-            train_list = [line.rstrip('\n') for line in open(self.train_dir)]
-            val_list = [line.rstrip('\n') for line in open(self.val_dir)]
+            train_list = []
+            val_list = []
+            for file in os.listdir(self.train_dir):
+                if file.endswith(".npy"):
+                    label = os.path.join(self.train_dir, file[:-4] + '.txt')
+                    if os.path.isfile(label):
+                        train_list.append(file)
+
+            for file in os.listdir(self.val_dir):
+                if file.endswith(".npy"):
+                    label = os.path.join(self.train_dir, file[:-4] + '.txt')
+                    if os.path.isfile(label):
+                        val_list.append(file)
 
         # Data Loader
         #Read Aug config
@@ -197,7 +213,9 @@ class Trainer(object):
 
         self.num_iter_per_epoch = len(self.training_generator)
         self.step = 0
-        self.best_loss = 1e5
+        self.best_train_loss = 1e5
+        self.best_val_loss = 1e5
+        self.current_val_loss = 0.0
         self.epochs = train_opt.epochs
         self.total_fcng = np.zeros((1, 8))
 
@@ -206,6 +224,7 @@ class Trainer(object):
         self.cls_weight = np.zeros((1, self.num_cls))
         self.loss_weight = np.zeros((1, self.num_cls))
         self.with_w = train_opt.lossW
+        self.EarlyStop = EarlyStopper(patience=10, min_delta=0.1)
 
     def data_analysis(self):
         # Train data
@@ -227,7 +246,9 @@ class Trainer(object):
 
         sum = np.sum(self.train_data_dis, axis=1)
         self.cls_weight = self.train_data_dis / sum
-        self.loss_weight = (1.0 / self.cls_weight)
+        max = np.max(self.cls_weight)
+        self.loss_weight = max / self.cls_weight
+        # self.loss_weight = (1.0 / self.cls_weight)
         if self.with_w:
             w = torch.from_numpy(self.loss_weight[0]).to(self.device)
             self.model = ModelWithLoss(model=self.model, reduction='mean', weight=w)
@@ -287,6 +308,10 @@ class Trainer(object):
 
         mean_loss = np.mean(epoch_loss)
 
+        if self.best_train_loss > mean_loss:
+            self.best_train_loss = mean_loss
+            self.save_checkpoint(self.model, self.save_dir, 'best_train_loss.pt')
+
         train_descrip = '[Train] Epoch: {}. Mean Loss: {:.6f}.'.format(epoch+1, mean_loss)
         print(train_descrip)
         self.writer.add_scalars('Loss', {'train': mean_loss}, epoch)
@@ -318,6 +343,7 @@ class Trainer(object):
                     continue
 
         mean_loss = np.mean(epoch_loss)
+        self.current_val_loss = mean_loss
         val_descrip = '[Validation] Epoch: {}. Mean Loss: {:.6f}.'.format(epoch + 1, mean_loss)
         print(val_descrip)
 
@@ -330,8 +356,8 @@ class Trainer(object):
 
         self.save_checkpoint(self.model, self.save_dir, 'last.pt')
 
-        if self.best_loss > mean_loss:
-            self.best_loss = mean_loss
+        if self.best_val_loss > mean_loss:
+            self.best_val_loss = mean_loss
             self.save_checkpoint(self.model, self.save_dir, 'best_val_loss.pt')
 
     def start(self):
@@ -339,6 +365,11 @@ class Trainer(object):
         for epoch in range(self.epochs):
             self.train(epoch)
             self.validation(epoch)
+            early_stop = self.EarlyStop(self.current_val_loss)
+            if early_stop:
+                nni.report_final_result(self.current_val_loss)
+                print("Early Stop at {} epochs".format(epoch))
+                break
 
     def save_checkpoint(self, model, saved_path, name):
         torch.save(model.model.state_dict(), saved_path + name)

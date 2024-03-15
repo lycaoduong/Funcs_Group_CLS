@@ -59,15 +59,15 @@ class DatasetPreprocess(object):
         new_df.to_csv(save_dir, index=False)
         print("Finish - Check output folder at {}".format(self.root_dir))
 
-    def tral_val_dataset(self, ir, target, val=0.2):
+    def tral_val_dataset(self, ir, target, val_size=0.2):
         train_dir = os.path.join(self.root_dir, 'train')
         os.makedirs(train_dir, exist_ok=True)
-        val_dir = os.path.join(self.root_dir, 'val')
+        val_dir = os.path.join(self.root_dir, 'test')
         os.makedirs(val_dir, exist_ok=True)
         labels = pd.read_csv(os.path.join(self.root_dir, target))
         datasets = pd.read_csv(os.path.join(self.root_dir, ir))
         total_label = labels['cas'].tolist()
-        train, val = train_test_split(total_label, test_size=val, random_state=42)
+        train, val = train_test_split(total_label, test_size=val_size, random_state=42)
         print("Extracting train dataset\n")
         for file in tqdm(train):
             value = datasets[str(file)].to_numpy()
@@ -93,3 +93,70 @@ class DatasetPreprocess(object):
                         f.write(f"{item} ")
                     else:
                         f.write(f"{item}")
+
+    def split_by_num(self, ir, target, split_size=[0.75, 0.15, 0.1]):
+        val_test_size = split_size[1] + split_size[2]
+        test_size = split_size[2] / (split_size[1] + split_size[2])
+        train_dir = os.path.join(self.root_dir, 'by_len', 'train')
+        os.makedirs(train_dir, exist_ok=True)
+        val_dir = os.path.join(self.root_dir, 'by_len', 'val')
+        os.makedirs(val_dir, exist_ok=True)
+        test_dir = os.path.join(self.root_dir, 'by_len', 'test')
+        os.makedirs(test_dir, exist_ok=True)
+        labels = pd.read_csv(os.path.join(self.root_dir, target))
+        datasets = pd.read_csv(os.path.join(self.root_dir, ir))
+        total_label = labels['cas'].tolist()
+        label_array = labels.to_numpy()[:, 1:]
+        sum = np.sum(label_array, axis=1)
+        max_len = np.max(sum)
+        # min_len = np.min(sum)
+        for i in range(1, max_len+1):
+            filter_id = np.where(sum == i)[0]
+            train_id, val_test_id = train_test_split(filter_id, test_size=val_test_size, random_state=42)
+            val_id, test_id = train_test_split(val_test_id, test_size=test_size, random_state=42)
+
+            filter_train_df = labels.iloc[train_id]
+            filter_val_df = labels.iloc[val_id]
+            filter_test_df = labels.iloc[test_id]
+
+            file_name = filter_train_df['cas'].tolist()
+            print("Extracting train dataset\n")
+            for file in file_name:
+                value = datasets[str(file)].to_numpy()
+                index = total_label.index(file)
+                target = labels.iloc[index].tolist()[1:]
+                np.save(os.path.join(train_dir, '{}.npy'.format(file)), value)
+                with open(os.path.join(train_dir, '{}.txt'.format(file)), 'w') as f:
+                    for i, item in enumerate(target):
+                        if i != len(target) - 1:
+                            f.write(f"{item} ")
+                        else:
+                            f.write(f"{item}")
+
+            file_name = filter_val_df['cas'].tolist()
+            print("Extracting val dataset\n")
+            for file in tqdm(file_name):
+                value = datasets[str(file)].to_numpy()
+                index = total_label.index(file)
+                target = labels.iloc[index].tolist()[1:]
+                np.save(os.path.join(val_dir, '{}.npy'.format(file)), value)
+                with open(os.path.join(val_dir, '{}.txt'.format(file)), 'w') as f:
+                    for i, item in enumerate(target):
+                        if i != len(target) - 1:
+                            f.write(f"{item} ")
+                        else:
+                            f.write(f"{item}")
+
+            file_name = filter_test_df['cas'].tolist()
+            print("Extracting test dataset\n")
+            for file in tqdm(file_name):
+                value = datasets[str(file)].to_numpy()
+                index = total_label.index(file)
+                target = labels.iloc[index].tolist()[1:]
+                np.save(os.path.join(test_dir, '{}.npy'.format(file)), value)
+                with open(os.path.join(test_dir, '{}.txt'.format(file)), 'w') as f:
+                    for i, item in enumerate(target):
+                        if i != len(target) - 1:
+                            f.write(f"{item} ")
+                        else:
+                            f.write(f"{item}")

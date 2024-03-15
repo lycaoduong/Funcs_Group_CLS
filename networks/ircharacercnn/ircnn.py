@@ -70,8 +70,8 @@ if __name__ == '__main__':
         device = 'cuda'
     else:
         device = 'cpu'
-    model = IrCNN()
+    model = IrCNN(signal_size=600)
     model = model.to(device)
-    rs = torch.randn(8, 1, 1024).to(device)
+    rs = torch.randn(8, 1, 600).to(device)
     o = model(rs)
     print(o)

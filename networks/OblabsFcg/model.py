@@ -59,20 +59,31 @@ class FCGClassification(nn.Module):
 
 
 class FCGClassificationXPORT(nn.Module):
-    def __init__(self, embed_dim, signal_size, patch_size, target_vocab_size, num_layers=2, expansion_factor=4,
-                 n_heads=8, num_cls=1):
+    def __init__(self, embed_dim, signal_size, patch_size, num_layers=2, expansion_factor=4, n_heads=8, num_cls=1):
         super(FCGClassificationXPORT, self).__init__()
-        self.target_vocab_size = target_vocab_size
 
         self.encoder = FCGTransformerEncoder(signal_size=signal_size, patch_size=patch_size, embed_dim=embed_dim,
                                              num_layers=num_layers, n_heads=n_heads, expansion_factor=expansion_factor,
                                              num_cls=num_cls)
         self.head = nn.Linear(embed_dim, num_cls)
 
+    def get_self_attention(self, layer_value=None):
+        layers = self.encoder.layers
+        if layer_value is None:
+            self_att = []
+            for encoder_block in layers:
+                self_att.append(encoder_block.attention.attention_map.cpu().numpy())
+            return self_att
+        # Extract layer value 0, 1 or 2 ...
+        else:
+            return layers[layer_value].attention.attention_map.cpu().numpy()
+
+
     def forward(self, signal):
         x = self.encoder(signal)
         cls_token_final = x[:, 0]  # just CLS token
         x = self.head(cls_token_final)
+        # Comment it if Loss Function has activation function
         x = torch.sigmoid(x)
         return x
 

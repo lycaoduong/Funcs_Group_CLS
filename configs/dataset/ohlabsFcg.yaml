@@ -1,8 +1,9 @@
 author : 'Ly Cao Duong - 20231227'
 project : 'Ohlabs Functional Groups Classification'
-train_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/train'
-#val_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/val'
-val_dir : 0.2
+train_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/by_len/train'
+val_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/by_len/val'
+test_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/by_len/test'
+#val_dir : 0.1
 eval_dir : 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/test'
 token_dir: 'D:/lycaoduong/workspace/datasets/ohlabs/minh/dataset/tokens/ohlabs_tokens.csv'
 pos_dic: {0: "alkane", 1: "methyl", 2: "alkene", 3: "alkyne", 4: "alcohols", 5: "amines", 6: "nitriles", 7: "aromatics",

@@ -1,6 +1,6 @@
 author : 'Ly Cao Duong - 20231227'
 project : 'IRCNN Model'
-signal_size: 1024
+signal_size: 600
 patch_size: None
 num_layers: None
 embed_dim: None

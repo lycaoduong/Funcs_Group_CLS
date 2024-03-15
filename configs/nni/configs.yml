@@ -1,8 +1,8 @@
 authorName: lycaoduong
-experimentName: visionin
+experimentName: fcg-former
 trialConcurrency: 1
 maxExecDuration: 99999d
-maxTrialNum: 3
+maxTrialNum: 4
 trainingServicePlatform: local
 searchSpacePath: D:/lycaoduong/workspace/src_code/github_repo/oblabs/Funcs_Group_CLS/configs/nni/search_space.json
 logDir: D:/lycaoduong/workspace/src_code/github_repo/oblabs/runs/nni_logs
@@ -14,4 +14,4 @@ tuner:
 trial:
   codeDir: D:/lycaoduong/workspace/src_code/github_repo/oblabs/Funcs_Group_CLS
   command: python train.py #--request-from-nni
-  gpuNum: 1
+  gpuNum: 0

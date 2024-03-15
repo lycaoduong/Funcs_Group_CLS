@@ -13,7 +13,7 @@ import torch
 from tqdm.autonotebook import tqdm
 import traceback
 import numpy as np
-from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf
+from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve
 
 
 class ModelWithLoss(nn.Module):
@@ -25,7 +25,10 @@ class ModelWithLoss(nn.Module):
 
     def forward(self, signal, target, **kwargs):
         o = self.model(signal)
-        o = torch.squeeze(o)
+        if len(o.shape) == 3:
+            o = torch.squeeze(o, dim=1)
+        if len(o.shape) == 1:
+            o = torch.unsqueeze(o, dim=0)
         losses = self.criterion(o, target)
         return losses, torch.sigmoid(o)
 
@@ -44,7 +47,7 @@ class Evaluation(object):
 
 
         exp_name, trial_name = 'single_run', date_time
-        self.save_dir = '../runs/eval/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset, exp_name,
+        self.save_dir = '../runs/eval_paper/{}/{}_{}/{}/{}/'.format(self.project, self.model_name, self.dataset, exp_name,
                                                               trial_name)
         os.makedirs(self.save_dir, exist_ok=True)
 
@@ -55,7 +58,7 @@ class Evaluation(object):
 
         # Read dataset
         dataset_configs = YamlRead(f'configs/dataset/{self.dataset}.yaml')
-        self.eval_dir = dataset_configs.eval_dir
+        self.eval_dir = dataset_configs.test_dir
         self.mean = dataset_configs.mean
         self.std = dataset_configs.std
         self.num_cls = dataset_configs.num_cls
@@ -94,7 +97,8 @@ class Evaluation(object):
         self.eval_generator = DataLoader(eval_set, collate_fn=tr.collater, **eval_params)
 
         # Model
-        if self.model_name == "Fcg-B" or self.model_name == "Fcg-L":
+        if self.model_name == "Fcg-S" or self.model_name == "Fcg-B" or self.model_name == "Fcg-L" \
+                or self.model_name == "Fcg-H" or self.model_name == "Fcg-Bbk":
             model = FCGClassification(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
                                       patch_size=model_configs.patch_size, num_layers=model_configs.num_layers,
                                       expansion_factor=model_configs.expansion_factor, n_heads=model_configs.n_heads,
@@ -126,6 +130,7 @@ class Evaluation(object):
         self.cls_weight = np.zeros((1, self.num_cls))
         self.loss_weight = np.zeros((1, self.num_cls))
         self.th = eval_opt.threshold
+        self.best_th = eval_opt.threshold
         
     def eval_data_analysis(self):
         progress_bar = tqdm(self.eval_generator)
@@ -158,7 +163,42 @@ class Evaluation(object):
                       save_name="{}_cf.png".format(fng_name))
 
         print("Finish plot Confusion matrix, check save path: {}".format(self.save_dir))
-        
+
+    def PR_Calculator(self):
+        total_func_confusion = np.sum(self.funcs_confusion, axis=0)
+        ext = 1e-5
+        tp = total_func_confusion[0, 0]
+        fn = total_func_confusion[0, 1]
+        fp = total_func_confusion[1, 0]
+        tn = total_func_confusion[1, 1]
+        precision = tp / (tp + fp + ext)
+        recall = tp / (tp + fn + ext) #TPR
+        fpr = fp / (fp + tn + ext)
+        return precision, recall, fpr
+
+    def ROC_PR_Plot(self, range=[0.05, 0.95, 0.05]):
+        th_array = np.arange(start=range[0], stop=range[1] + range[2], step=range[2])
+        precision = []
+        recall = []
+        fp = []
+        for th in th_array:
+            print("PR Evaluation - threshold: {}".format(th))
+            self.th = th
+            self.eval()
+            p, r, fpr = self.PR_Calculator()
+            print("Precision-{}; Recall-{}; FPR-{}".format(p, r, fpr))
+            recall.append(r)
+            precision.append(p)
+            fp.append(fpr)
+            # Reset value
+            self.funcs_confusion = np.zeros((self.num_cls, 2, 2))
+            self.substance_confusion = np.zeros((1, 2))
+        optimal_idx = np.argmax(np.array(recall)-np.array(fp))
+        optimal_threshold = th_array[optimal_idx]
+        self.th = optimal_threshold
+        print("Optimal Threshold value is:", optimal_threshold)
+        plot_roc_pr_curve(precision, recall, fp, save_dir=self.save_dir)
+
     def eval(self):
         self.model.eval()
         last_epoch = self.step // self.num_iter_per_epoch
@@ -200,8 +240,8 @@ class Evaluation(object):
         mean_loss = np.mean(losses)
         eval_descrip = '[Eval]. Mean Loss: {:.6f}.'.format(mean_loss)
         print(eval_descrip)
-        self.plot_confusion_matrix()
 
     def start(self):
         # self.eval_data_analysis()
         self.eval()
+        self.plot_confusion_matrix()

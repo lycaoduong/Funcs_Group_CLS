@@ -4,8 +4,8 @@ from utils.ohlabs.trainutils import YamlRead
 from networks.OblabsFcg.model import FCGDescription, FCGClassificationXPORT, FCGClassFormerXPORT
 import cv2
 import pandas as pd
-from torch import nn
 import onnxruntime
+from networks.ircharacercnn.ircnn import IrCNN
 
 data_cfg = f'configs/dataset/ohlabsFcg.yaml'
 
@@ -79,20 +79,19 @@ class PredictorCls(object):
         self.model_name = model_name
         model_configs = YamlRead(f'configs/model/{model_name}.yaml')
         dataset_configs = YamlRead(data_cfg)
-        if model_name == 'Fcg-B':
+        if self.model_name == "Fcg-S" or self.model_name == "Fcg-B" or self.model_name == "Fcg-L" \
+                or self.model_name == "Fcg-H":
             self.model = FCGClassificationXPORT(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
-                                                patch_size=model_configs.patch_size,
-                                                target_vocab_size=model_configs.voca_size,
-                                                num_layers=model_configs.num_layers,
-                                                expansion_factor=model_configs.expansion_factor,
-                                                n_heads=model_configs.n_heads, num_cls=dataset_configs.num_cls)
+                                                patch_size=model_configs.patch_size, num_layers=model_configs.num_layers,
+                                                expansion_factor=model_configs.expansion_factor, n_heads=model_configs.n_heads,
+                                                num_cls=dataset_configs.num_cls)
+        elif self.model_name == "IRCNN":
+            self.model = IrCNN(signal_size=model_configs.signal_size)
         else:
             self.model = FCGClassFormerXPORT(embed_dim=model_configs.embed_dim, signal_size=model_configs.signal_size,
-                                                patch_size=model_configs.patch_size,
-                                                target_vocab_size=model_configs.voca_size,
-                                                num_layers=model_configs.num_layers,
-                                                expansion_factor=model_configs.expansion_factor,
-                                                n_heads=model_configs.n_heads, num_cls=dataset_configs.num_cls)
+                                             patch_size=model_configs.patch_size, num_layers=model_configs.num_layers,
+                                             expansion_factor=model_configs.expansion_factor,
+                                             n_heads=model_configs.n_heads, num_cls=dataset_configs.num_cls)
         self.device = device
         if ckpt is not None:
             weight = torch.load(ckpt, map_location=self.device)
@@ -104,7 +103,8 @@ class PredictorCls(object):
 
     def to_onnx(self, save_dir):
         input_names = ["signal"]
-        if self.model_name == 'Fcg-B':
+        if self.model_name == "Fcg-S" or self.model_name == "Fcg-B" or self.model_name == "Fcg-L" \
+                or self.model_name == "Fcg-H":
             output_names = ["result"]
         else:
             output_names = ["result", "attmap"]

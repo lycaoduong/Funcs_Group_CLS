@@ -213,7 +213,7 @@ class SelfAttention(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, embed_dim, expansion_factor=4, n_heads=8):
+    def __init__(self, embed_dim, expansion_factor=4, n_heads=8, p=0.1):
         super(TransformerBlock, self).__init__()
 
         """
@@ -234,8 +234,8 @@ class TransformerBlock(nn.Module):
             nn.Linear(expansion_factor * embed_dim, embed_dim)
         )
 
-        self.dropout1 = nn.Dropout(0.2)
-        self.dropout2 = nn.Dropout(0.2)
+        self.dropout1 = nn.Dropout(p)
+        self.dropout2 = nn.Dropout(p)
 
     def forward(self, key, query, value):
         """
