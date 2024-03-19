@@ -13,7 +13,7 @@ import torch
 from tqdm.autonotebook import tqdm
 import traceback
 import numpy as np
-from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve
+from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve, subs_len_confusion
 
 
 class ModelWithLoss(nn.Module):
@@ -124,7 +124,7 @@ class Evaluation(object):
         self.step = 0
 
         self.funcs_confusion = np.zeros((self.num_cls, 2, 2))
-        self.substance_confusion = np.zeros((1, 2))
+        self.substance_confusion = np.zeros((8, 2))
         self.cls_dic = dataset_configs.pos_dic
         self.data_dis = np.zeros((1, self.num_cls))
         self.cls_weight = np.zeros((1, self.num_cls))
@@ -145,20 +145,26 @@ class Evaluation(object):
 
     def plot_confusion_matrix(self):
         # Plot total functional groups cf
-        plot_conf(np.sum(self.funcs_confusion, axis=0), label=["Positive", "Negative"],
+        plot_conf(np.sum(self.funcs_confusion, axis=0), labelX=["Positive", "Negative"],
+                  labelY=["Positive", "Negative"],
                   title="Total functional groups confusion matrix",
                   save_dir=self.save_dir, save_name="fngs_cf.png")
         # Plot subs cf
-        tem = np.zeros((2, 2))
-        tem[0] = self.substance_confusion
-        plot_conf(tem, label=["True", "False"], title="Total substances confusion matrix", save_dir=self.save_dir,
+        # tem = np.zeros((2, 2))
+        # tem[0] = self.substance_confusion
+        plot_conf(self.substance_confusion, labelX=["True", "False"],
+                  labelY=["1 Group", "2 Group", "3 Group", "4 Group", "5 Group", "6 Group", "7 Group", "Total"],
+                  title="Molecule confusion matrix / Functional group", save_dir=self.save_dir,
+                  size=(15, 12),
                   save_name="subs_cf.png")
 
         # Plot each functional group cf
         for i in self.cls_dic.keys():
             fng_name = self.cls_dic[i]
             conf = self.funcs_confusion[i]
-            plot_conf(conf, label=["Positive", "Negative"], title="{} confusion matrix".format(fng_name),
+            plot_conf(conf, labelX=["Positive", "Negative"],
+                      labelY=["Positive", "Negative"],
+                      title="{} confusion matrix".format(fng_name),
                       save_dir=self.save_dir,
                       save_name="{}_cf.png".format(fng_name))
 
@@ -192,7 +198,7 @@ class Evaluation(object):
             fp.append(fpr)
             # Reset value
             self.funcs_confusion = np.zeros((self.num_cls, 2, 2))
-            self.substance_confusion = np.zeros((1, 2))
+            self.substance_confusion = np.zeros((8, 2))
         optimal_idx = np.argmax(np.array(recall)-np.array(fp))
         optimal_threshold = th_array[optimal_idx]
         self.th = optimal_threshold
@@ -222,7 +228,8 @@ class Evaluation(object):
                 fun_conf = func_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
                 self.funcs_confusion += fun_conf
 
-                subs_conf = subs_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
+                # subs_conf = subs_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
+                subs_conf = subs_len_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
                 self.substance_confusion += subs_conf
 
                 losses.append(float(loss.item()))
