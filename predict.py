@@ -20,10 +20,15 @@ def get_args():
 if __name__ == '__main__':
     opt = get_args()
     engine = PredictorCls(model_name=opt.model, ckpt=opt.ckpt, device=opt.device)
-    spectra = np.load(opt.input)
+
+    # spectra = np.load(opt.input)
+    spectra = np.load('D:/lycaoduong/workspace/paper/fcg-former/rs/2373797.npy')
     o = engine(spectra, th=0.5)
+    # att0 = engine.model.get_self_attention(layer_value=0)
+    # att0 = np.sum(att0[0], axis=0)
     att = engine.model.get_self_attention(layer_value=1)
     att = np.sum(att[0], axis=0)
+    # o = att0 + att
     plot_self_attention_map(spectra, att)
     # print(1)
     # result, att_map = o["result"], o["att_map"]

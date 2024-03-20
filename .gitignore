@@ -156,4 +156,4 @@ cython_debug/
 *.pth
 *.npy
 *.onnx
-/deploy
+/hfdeploy/FcgB
