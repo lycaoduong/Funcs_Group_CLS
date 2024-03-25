@@ -147,16 +147,16 @@ class Evaluation(object):
         # Plot total functional groups cf
         plot_conf(np.sum(self.funcs_confusion, axis=0), labelX=["Positive", "Negative"],
                   labelY=["Positive", "Negative"],
-                  title="Total functional groups confusion matrix",
-                  save_dir=self.save_dir, save_name="fngs_cf.png")
+                  title="Total Functional groups Confusion Matrix",
+                  save_dir=self.save_dir, save_name="fngs_cf.png", rotationY=90)
         # Plot subs cf
         # tem = np.zeros((2, 2))
         # tem[0] = self.substance_confusion
         plot_conf(self.substance_confusion, labelX=["True", "False"],
-                  labelY=["1 Group", "2 Group", "3 Group", "4 Group", "5 Group", "6 Group", "7 Group", "Total"],
-                  title="Molecule confusion matrix / Functional group", save_dir=self.save_dir,
-                  size=(15, 12),
-                  save_name="subs_cf.png")
+                  labelY=["1-Group", "2-Group", "3-Group", "4-Group", "5-Group", "6-Group", "7-Group", "Total"],
+                  title="Molecule Confusion Matrix", save_dir=self.save_dir,
+                  size=(19, 12),
+                  save_name="subs_cf.png", rotationY=0)
 
         # Plot each functional group cf
         for i in self.cls_dic.keys():
@@ -164,9 +164,9 @@ class Evaluation(object):
             conf = self.funcs_confusion[i]
             plot_conf(conf, labelX=["Positive", "Negative"],
                       labelY=["Positive", "Negative"],
-                      title="{} confusion matrix".format(fng_name),
+                      title="{} Confusion Matrix".format(fng_name.capitalize()),
                       save_dir=self.save_dir,
-                      save_name="{}_cf.png".format(fng_name))
+                      save_name="{}_cf.png".format(fng_name), rotationY=90)
 
         print("Finish plot Confusion matrix, check save path: {}".format(self.save_dir))
 
@@ -182,7 +182,7 @@ class Evaluation(object):
         fpr = fp / (fp + tn + ext)
         return precision, recall, fpr
 
-    def ROC_PR_Plot(self, range=[0.05, 0.95, 0.05]):
+    def ROC_PR_Plot(self, range=[0.05, 0.95, 0.05], fix=None):
         th_array = np.arange(start=range[0], stop=range[1] + range[2], step=range[2])
         precision = []
         recall = []
@@ -200,7 +200,10 @@ class Evaluation(object):
             self.funcs_confusion = np.zeros((self.num_cls, 2, 2))
             self.substance_confusion = np.zeros((8, 2))
         optimal_idx = np.argmax(np.array(recall)-np.array(fp))
-        optimal_threshold = th_array[optimal_idx]
+        if fix is None:
+            optimal_threshold = th_array[optimal_idx]
+        else:
+            optimal_threshold=fix
         self.th = optimal_threshold
         print("Optimal Threshold value is:", optimal_threshold)
         plot_roc_pr_curve(precision, recall, fp, save_dir=self.save_dir)

@@ -110,7 +110,7 @@ class Trainer(object):
 
             for file in os.listdir(self.val_dir):
                 if file.endswith(".npy"):
-                    label = os.path.join(self.train_dir, file[:-4] + '.txt')
+                    label = os.path.join(self.val_dir, file[:-4] + '.txt')
                     if os.path.isfile(label):
                         val_list.append(file)
 
@@ -153,7 +153,7 @@ class Trainer(object):
             tr.Resizer(signal_size=self.signal_size)
         ]
 
-        val_set = FCGClassificationDataset(root_dir=self.train_dir, list_data=val_list, voca_dic=voca_token,
+        val_set = FCGClassificationDataset(root_dir=self.val_dir, list_data=val_list, voca_dic=voca_token,
                                            pos_dic=self.pos_dic, max_sequence=self.max_sequence,
                                            transform=transforms.Compose(validation_transforms))
 
@@ -361,7 +361,7 @@ class Trainer(object):
             self.save_checkpoint(self.model, self.save_dir, 'best_val_loss.pt')
 
     def start(self):
-        self.data_analysis()
+        # self.data_analysis()
         for epoch in range(self.epochs):
             self.train(epoch)
             self.validation(epoch)

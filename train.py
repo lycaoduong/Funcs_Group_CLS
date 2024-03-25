@@ -38,4 +38,5 @@ if __name__ == '__main__':
 
     opt = toOpt(opt)
     trainer = Trainer(opt)
-    trainer.start()
+    trainer.data_analysis()
+    # trainer.start()

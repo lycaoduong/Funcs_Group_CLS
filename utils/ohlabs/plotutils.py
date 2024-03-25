@@ -48,22 +48,24 @@ def plot_self_attention_map(spectra, att_map, offset=400):
 
 def addlabels(x,y):
     for i in range(len(x)):
-        plt.text(i,y[i],y[i])
+        plt.text(i, y[i], y[i], ha='center')
 
 def plot_data(data_dis, save_dir="./", save_name="fg.png"):
+    plt.rc('font', size=20)
     fig = plt.figure(figsize=(20, 10))
     x_pos = np.arange(len(funcs_name))
     plt.bar(funcs_name, data_dis[0], align='center', alpha=0.5)
     addlabels(x_pos, data_dis[0])
-    plt.xticks(x_pos, funcs_name)
-    plt.ylabel('Total samples')
-    plt.title('Functional Groups Data Distribution')
+    plt.xticks(x_pos, funcs_name, rotation=45)
+    plt.ylabel('Total samples', fontsize=30)
+    plt.title('Functional Groups Data Distribution', fontsize=25)
     # plt.show()
     save_path = os.path.join(save_dir, save_name)
+    plt.tight_layout()
     plt.savefig(save_path)
 
 def plot_roc_pr_curve(precision, recall, fpr, save_dir="./", save_name="funcs_roc_pr_curve.png"):
-    fig = plt.figure(figsize=(14, 8))
+    fig = plt.figure(figsize=(24, 12))
     plt.style.use('ggplot')
     # Add value
     precision.insert(0, 0.0001)
@@ -77,14 +79,14 @@ def plot_roc_pr_curve(precision, recall, fpr, save_dir="./", save_name="funcs_ro
     # ROC curve
     plt.subplot(121)
     plt.plot(fpr, recall, linewidth=2)
-    plt.title('ROC Curve', fontsize=18, fontweight="bold", y=1.05)
+    plt.title('ROC Curve', fontsize=40, fontweight="bold", y=1.05)
     plt.fill_between(fpr, recall, facecolor='blue', alpha=0.1)
-    plt.text(0.55, 0.4, 'AUC', fontsize=30)
+    plt.text(0.55, 0.4, 'AUC', fontsize=40)
     # styling figure
-    plt.xlabel('False Positive Rate', fontsize=16, labelpad=13)
-    plt.ylabel('True Positive Rate', fontsize=16, labelpad=13)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xlabel('False Positive Rate', fontsize=35, labelpad=13)
+    plt.ylabel('True Positive Rate', fontsize=35, labelpad=13)
+    plt.xticks(fontsize=30)
+    plt.yticks(fontsize=30)
     plt.plot([0, 1], [0, 1], 'k--')
     plt.xlim(-0.01, 1.01)
     plt.ylim(-0.01, 1.01)
@@ -92,19 +94,25 @@ def plot_roc_pr_curve(precision, recall, fpr, save_dir="./", save_name="funcs_ro
     # PR Curve
     plt.subplot(122)
     plt.plot(recall, precision)
-    plt.title('PR Curve', fontsize=18, fontweight="bold", y=1.05)
-    plt.ylabel('Precision', fontsize=16, labelpad=13)
-    plt.xlabel('Recall', fontsize=16, labelpad=13)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.title('PR Curve', fontsize=40, fontweight="bold", y=1.05)
+    plt.ylabel('Precision', fontsize=35, labelpad=13)
+    plt.xlabel('Recall', fontsize=35, labelpad=13)
+    plt.xticks(fontsize=30)
+    plt.yticks(fontsize=30)
     plt.xlim(-0.01, 1.01)
     plt.ylim(-0.01, 1.01)
     # plt.show()
     save_path = os.path.join(save_dir, save_name)
     plt.savefig(save_path)
+    plt.tight_layout()
     plt.close()
 
-def plot_conf(conf, labelX=["1", "0"], labelY=["1", "0"], title=None, save_dir="./", save_name='fg.png', size=None):
+def plot_conf(conf, labelX=["1", "0"], labelY=["1", "0"], title=None, save_dir="./", save_name='fg.png', size=None, rotationY=0):
+    # font = {'size': 11}
+    plt.rc('font', size=30)
+    plt.xticks(fontsize=30)
+    plt.yticks(fontsize=30)
+    # sns.set(font_scale=1.8)
     if size is None:
         fig = plt.figure(figsize=(15, 12))
     else:
@@ -113,19 +121,24 @@ def plot_conf(conf, labelX=["1", "0"], labelY=["1", "0"], title=None, save_dir="
     # disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=label)
     # disp.plot(values_format='')
     ax = plt.subplot()
-    sns.heatmap(conf, annot=True, fmt='g', ax=ax, cmap='Blues')  # annot=True to annotate cells, ftm='g' to disable scientific notation
+    sns.heatmap(conf, annot=True, fmt='g', ax=ax, cmap='Blues', annot_kws={'size': 30})
+    cbar = ax.collections[0].colorbar
+    cbar.ax.tick_params(labelsize=20)# annot=True to annotate cells, ftm='g' to disable scientific notation
     # labels, title and ticks
-    ax.set_xlabel('Predicted labels')
-    ax.set_ylabel('True labels')
+    ax.set_xlabel('Predicted labels', fontsize=35)
+    ax.set_ylabel('True labels', fontsize=35)
     # ax.set_title('Confusion Matrix')
-    ax.xaxis.set_ticklabels(labelX)
-    ax.yaxis.set_ticklabels(labelY)
+    ax.xaxis.set_ticklabels(labelX, fontsize=30)
+    ax.yaxis.set_ticklabels(labelY, fontsize=30, rotation=rotationY)
 
-    if title is not None:
-        ax.set_title('Confusion Matrix')
+    if title is None:
+        ax.set_title('Confusion Matrix', fontsize=40)
+    else:
+        ax.set_title(title, fontsize=40)
         # plt.title(title)
     # plt.show()
     save_path = os.path.join(save_dir, save_name)
+    plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
 
@@ -173,6 +186,9 @@ def subs_len_confusion(target, result, th=0.5):
     return conf_matrix
 
 def plot_loss_from_csv(fcg_loss, ircnn_loss, lr_dir):
+    font = {'size': 11}
+    plt.rc('font', **font)
+
     fcg_loss = pd.read_csv(fcg_loss)
     fcg_loss_value = fcg_loss['Value'].tolist()
     ircnn_loss = pd.read_csv(ircnn_loss)
@@ -188,15 +204,22 @@ def plot_loss_from_csv(fcg_loss, ircnn_loss, lr_dir):
     # ax[0].axis('equal')
 
     y_fgc, x_fcg = min(fcg_loss_value), fcg_loss_value.index(min(fcg_loss_value))
-    ax[0].annotate('best checkpoint', xy=(x_fcg, y_fgc), xytext=(x_fcg-50, y_fgc+0.5),
+    ax[0].annotate('best checkpoint', xy=(x_fcg, y_fgc), xytext=(x_fcg-60, y_fgc+0.5),
                 arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'red'}, va='center')
 
     y_ircnn, x_ircnn = min(ircnn_loss_value), ircnn_loss_value.index(min(ircnn_loss_value))
     ax[0].annotate('best checkpoint', xy=(x_ircnn, y_ircnn), xytext=(x_ircnn-50, y_ircnn+0.5),
-                arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'black'}, va='center')
+                arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'red'}, va='center')
 
     y_ircnn_stop, x_ircnn_stop = ircnn_loss_value[-1], len(ircnn_loss)
     ax[0].annotate('early stop point', xy=(x_ircnn_stop, y_ircnn_stop), xytext=(x_ircnn_stop+50, y_ircnn_stop+0.5),
+                arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'black'}, va='center')
+
+
+    # ax[0].annotate('learning rate restart point', xy=(120, fcg_loss_value[120+1]), xytext=(x_ircnn_stop+150, ircnn_loss_value[120]+0.5),
+    #             arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'black'}, va='center')
+
+    ax[0].annotate('learning rate restart point', xy=(280, fcg_loss_value[280+1]), xytext=(x_ircnn_stop+150, ircnn_loss_value[120]+0.5),
                 arrowprops={'arrowstyle': '->', 'ls': 'dashed', 'color': 'black'}, va='center')
 
     ax[0].set_title('Validation Loss', fontsize=18)
@@ -205,12 +228,12 @@ def plot_loss_from_csv(fcg_loss, ircnn_loss, lr_dir):
     ax[0].set_xlim([0, 600])
     ax[0].set_ylim([0, 1.2])
 
-
-    ax[1].plot(lr_value, label='Learning rate')
+    x = np.linspace(0, 600, len(lr_value))
+    ax[1].plot(x, lr_value, label='Learning rate')
     ax[1].set_title('Learning rate scheduler', fontsize=18)
-    ax[1].set_xlabel('Training steps', fontsize=16)
+    ax[1].set_xlabel('Epochs', fontsize=16)
     ax[1].set_ylabel('Learning rate', fontsize=16)
-    ax[1].set_xlim([0, 1000])
+    ax[1].set_xlim([0, 600])
     ax[1].set_ylim([0, 0.00025])
 
     leg = ax[0].legend()

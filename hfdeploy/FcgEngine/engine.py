@@ -85,13 +85,3 @@ class PredictorCls(object):
             fcn_groups.append(cls_name)
             probabilities.append(prob)
         return fcn_groups, probabilities
-
-    def decode(self, result, th=0.5):
-        predict_cls = list(np.where(result >= th))[0]
-        description = "Signal contains"
-        for ids in predict_cls:
-            description += ' '
-            cls_name = self.ids[ids]
-            prob = result[ids]
-            description += '{} ({:.4f});'.format(cls_name.capitalize(), prob)
-        return description
