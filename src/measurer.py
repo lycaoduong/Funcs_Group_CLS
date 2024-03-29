@@ -77,14 +77,24 @@ class Measurer(object):
     def count_parameters(self):
         table = PrettyTable(["Modules", "Parameters"])
         total_params = 0
+        trainable_params = 0
+        non_train_params = 0
         for name, parameter in self.model.named_parameters():
             if not parameter.requires_grad:
-                continue
+                non_train_params += parameter.numel()
+                # continue
+            else:
+                trainable_params += parameter.numel()
             params = parameter.numel()
             table.add_row([name, params])
-            total_params += params
+
+        total_params = trainable_params + non_train_params
         print(table)
-        print(f"Total Trainable Params: {total_params}")
+        print(f"Total Params: {total_params}")
+        print(f"Total Trainable Params: {trainable_params}")
+        print(f"Total non_Trainable Params: {non_train_params}")
+        estimate = total_params * 24 / 1048576
+        print(f"GPU RAM estimate: {estimate} MB")
         return total_params
 
     def inference(self):

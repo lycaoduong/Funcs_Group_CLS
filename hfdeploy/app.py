@@ -35,6 +35,15 @@ def clear():
     return None, None, None
 
 
+examples_signal = [
+    ['examples/2373797.npy'],
+    ['examples/2459054.npy'],
+    ['examples/17451182.npy'],
+    ['examples/19013106.npy'],
+    ['examples/168833805.npy'],
+]
+
+
 block = gr.Blocks(title="FcgFormer APP - Ohlabs")
 with block:
     with gr.Row():
@@ -54,6 +63,16 @@ with block:
                     run_button = gr.Button(value="Run", variant="primary")
                 with gr.Column():
                     clear_button = gr.Button(value="Clear")
+
+            with gr.Row():
+                download_example = gr.File(file_count="multiple",
+                                           label="Please select an example file below and then click on the file size, "
+                                                 "which is typically highlighted in blue, to download the example signal "
+                                                 "for testing purposes.",
+                                           type="binary", file_types=['.npy'])
+            with gr.Row():
+                gr.Examples(examples=examples_signal,
+                            inputs=download_example, label="Download example file")
 
         with gr.Column():
             with gr.Tab("Prediction"):
