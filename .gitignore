@@ -157,3 +157,9 @@ cython_debug/
 *.npy
 *.onnx
 /hfdeploy/FcgB
+networks/FcgClip/chemical_bert/config.json
+networks/FcgClip/chemical_bert/model.safetensors
+networks/FcgClip/chemical_bert/pytorch_model.bin
+networks/FcgClip/chemical_bert/special_tokens_map.json
+networks/FcgClip/chemical_bert/tokenizer_config.json
+networks/FcgClip/chemical_bert/vocab.txt
