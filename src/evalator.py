@@ -13,7 +13,7 @@ import torch
 from tqdm.autonotebook import tqdm
 import traceback
 import numpy as np
-from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve, subs_len_confusion
+from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve, subs_len_confusion, plot_numF_Data
 
 
 class ModelWithLoss(nn.Module):
@@ -127,10 +127,12 @@ class Evaluation(object):
         self.substance_confusion = np.zeros((8, 2))
         self.cls_dic = dataset_configs.pos_dic
         self.data_dis = np.zeros((1, self.num_cls))
+        self.subs_dis = np.zeros((1, 7))
         self.cls_weight = np.zeros((1, self.num_cls))
         self.loss_weight = np.zeros((1, self.num_cls))
         self.th = eval_opt.threshold
         self.best_th = eval_opt.threshold
+        self.true_subs = []
         
     def eval_data_analysis(self):
         progress_bar = tqdm(self.eval_generator)
@@ -138,10 +140,15 @@ class Evaluation(object):
             signals, tokenizer = data['signal'], data['tokenizer']
             tokenizer = tokenizer.cpu().numpy()
             self.data_dis += np.sum(tokenizer, axis=0)
+            for lb in tokenizer:
+                len = np.sum(lb)
+                self.subs_dis[:, len-1] += 1
+
         sum = np.sum(self.data_dis, axis=1)
         self.cls_weight = self.data_dis / sum
         self.loss_weight = (1.0 / self.cls_weight)
         plot_data(data_dis=self.data_dis, save_dir=self.save_dir, save_name="data_distribution.png")
+        plot_numF_Data(data_dis=self.subs_dis, save_dir=self.save_dir, save_name="numF_distribution.png")
 
     def plot_confusion_matrix(self):
         # Plot total functional groups cf
@@ -219,7 +226,7 @@ class Evaluation(object):
                 progress_bar.update()
                 continue
             try:
-                signals, tokenizer = data['signal'], data['tokenizer']
+                signals, tokenizer, fn = data['signal'], data['tokenizer'], data['fn']
                 signals = signals.to(self.device)
                 tokenizer = tokenizer.to(self.device)
                 tokenizer = tokenizer.to(torch.float32)
@@ -232,7 +239,10 @@ class Evaluation(object):
                 self.funcs_confusion += fun_conf
 
                 # subs_conf = subs_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
-                subs_conf = subs_len_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(), th=self.th)
+                subs_conf, list_true = subs_len_confusion(target=tokenizer.cpu().numpy(), result=predict.cpu().numpy(),
+                                                         th=self.th, fn=fn)
+
+                self.true_subs.extend(list_true)
                 self.substance_confusion += subs_conf
 
                 losses.append(float(loss.item()))
@@ -254,4 +264,5 @@ class Evaluation(object):
     def start(self):
         # self.eval_data_analysis()
         self.eval()
+        print(self.true_subs)
         self.plot_confusion_matrix()

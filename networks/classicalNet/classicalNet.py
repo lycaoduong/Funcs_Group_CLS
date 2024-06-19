@@ -8,6 +8,7 @@ import numpy as np
 from tqdm import tqdm
 import cv2
 from utils.ohlabs.plotutils import func_confusion, subs_confusion, plot_data, plot_conf, plot_roc_pr_curve, subs_len_confusion
+import pickle
 
 
 class ClassNet(object):
@@ -101,14 +102,25 @@ class ClassNet(object):
         self.substance_confusion = np.zeros((8, 2))
 
 
-    def start(self):
+    def start(self, save_dir=None):
         self.clf.fit(self.train_X, self.train_y)
+        if save_dir is not None:
+            self.saveModel(save_dir)
+
+    def saveModel(self, filename):
+        pickle.dump(self.clf, open(filename, "wb"))
+
+
+    def loadModel(self, filename):
+        self.clf = pickle.load(open(filename, "rb"))
+        print(1)
+
 
     def eval(self):
         self.predict = self.clf.predict(self.test_X)
         target = np.array(self.test_y)
         self.funcs_confusion = func_confusion(target=target, result=self.predict, th=0.5)
-        self.substance_confusion = subs_len_confusion(target=target, result=self.predict, th=0.5)
+        self.substance_confusion, _ = subs_len_confusion(target=target, result=self.predict, th=0.5)
         self.plot_confusion_matrix()
 
     def plot_confusion_matrix(self):

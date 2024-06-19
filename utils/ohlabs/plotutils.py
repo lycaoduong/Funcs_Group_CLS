@@ -10,6 +10,8 @@ funcs_name = ["alkane", "methyl", "alkene", "alkyne", "alcohols", "amines", "nit
               "alkyl halides", "esters", "ketones", "aldehydes", "carboxylic acids",
               "ether", "acyl halides", "amides", "nitro"]
 
+num_data = ["1-Group", "2-Group", "3-Group", "4-Group", "5-Group", "6-Group", "7-Group"]
+
 
 def plot_cross_attention_map(spectra, result, att_map):
     if att_map is not None:
@@ -59,6 +61,21 @@ def plot_data(data_dis, save_dir="./", save_name="fg.png"):
     plt.xticks(x_pos, funcs_name, rotation=45)
     plt.ylabel('Total samples', fontsize=30)
     plt.title('Functional Groups Data Distribution', fontsize=25)
+    # plt.show()
+    save_path = os.path.join(save_dir, save_name)
+    plt.tight_layout()
+    plt.savefig(save_path)
+
+
+def plot_numF_Data(data_dis, save_dir="./", save_name="fg.png"):
+    plt.rc('font', size=20)
+    fig = plt.figure(figsize=(20, 10))
+    x_pos = np.arange(len(num_data))
+    plt.bar(num_data, data_dis[0], align='center', alpha=0.5)
+    addlabels(x_pos, data_dis[0])
+    plt.xticks(x_pos, num_data, rotation=45)
+    plt.ylabel('Total samples', fontsize=30)
+    plt.title('Number of Functional Groups Data Distribution', fontsize=25)
     # plt.show()
     save_path = os.path.join(save_dir, save_name)
     plt.tight_layout()
@@ -167,11 +184,12 @@ def subs_confusion(target, result, th=0.5):
             conf_matrix[0, 1] += 1
     return conf_matrix
 
-def subs_len_confusion(target, result, th=0.5):
+def subs_len_confusion(target, result, th=0.5, fn=None):
     conf_matrix = np.zeros((8, 2))
     target = target.astype(np.uint8)
     result = (result >= th).astype(np.uint8)
     batch_size = target.shape[0]
+    list_true = []
     for idx in range(batch_size):
         tg = target[idx]
         pd = result[idx]
@@ -180,10 +198,12 @@ def subs_len_confusion(target, result, th=0.5):
         if res:
             conf_matrix[len-1, 0] += 1
             conf_matrix[7, 0] += 1
+            if fn is not None:
+                list_true.append(fn[idx])
         else:
             conf_matrix[len-1, 1] += 1
             conf_matrix[7, 1] += 1
-    return conf_matrix
+    return conf_matrix, list_true
 
 def plot_loss_from_csv(fcg_loss, ircnn_loss, lr_dir):
     font = {'size': 11}

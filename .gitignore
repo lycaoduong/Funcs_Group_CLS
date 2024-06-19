@@ -156,6 +156,7 @@ cython_debug/
 *.pth
 *.npy
 *.onnx
+*.pickle
 /hfdeploy/FcgB
 networks/FcgClip/chemical_bert/config.json
 networks/FcgClip/chemical_bert/model.safetensors

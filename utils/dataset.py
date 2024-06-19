@@ -24,6 +24,17 @@ class DatasetPreprocess(object):
             df_new.to_csv(save_dir, index=False)
             print("Finish - Check output folder at {}".format(self.root_dir))
 
+    def csv2numpy(self, csv_file, key='Absorbance'):
+        save_dir = os.path.dirname(csv_file)
+        base_name = os.path.basename(csv_file)
+        id_name = base_name.split('_')[0]
+        df = pd.read_csv(csv_file)
+        data = df[key].to_numpy()
+        save_p = os.path.join(save_dir, '{}.npy'.format(id_name))
+        np.save(save_p, data)
+
+
+
     def clean_dataset(self, ir_file="ir_processed.csv", target_file="target.csv"):
         target_dir = os.path.join(self.root_dir, target_file)
         ir_dir = os.path.join(self.root_dir, ir_file)
